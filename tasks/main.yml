@@ -1,0 +1,39 @@
+- name: install dependencies
+  package: 
+    name: "{{item}}"
+  with_items:
+    - perl-Switch 
+    - perl-DateTime 
+    - perl-Sys-Syslog 
+    - perl-LWP-Protocol-https
+  tags: deps
+
+- file: dest=/opt/scripts/aws state=directory recurse=yes
+  
+- name: download cloudwatch scripts
+  get_url:
+    url: http://aws-cloudwatch.s3.amazonaws.com/downloads/CloudWatchMonitoringScripts-1.2.1.zip
+    dest: /opt/scripts/aws/CloudWatchMonitoringScripts-1.2.1.zip
+    mode: 0775
+  tags: script
+
+- name: uncompress cloudwatch scripts
+  shell: |
+    cd /opt/scripts/aws
+    unzip -o CloudWatchMonitoringScripts-1.2.1.zip
+  tags: script
+
+- name: configure aws credentials
+  template:
+    src: awscreds.conf.j2
+    dest: /root/.aws.conf
+  tags: creds
+
+- name: configure cron
+  cron:
+    name: "cloudwatch"
+    cron_file: "cloudwatch"
+    user: root
+    minute: "*/5"
+    job: "/opt/scripts/aws/aws-scripts-mon/mon-put-instance-data.pl --aws-credential-file=/root/.aws.conf --mem-used-incl-cache-buff --mem-util --from-cron"
+  tags: cron
